@@ -24,6 +24,7 @@ python vn_stock_analyzer.py VCB.VN --details --output stock_details.json
 ```
 
 **Output includes:**
+
 - Real-time price
 - Financial ratios
 - Technical indicators (SMA 20/50/200, RSI 14)
@@ -38,6 +39,7 @@ python vn_stock_analyzer.py FPT.VN --financials --output financials.json
 ```
 
 **Metrics returned:**
+
 - P/E Ratio (Price-to-Earnings)
 - ROE (Return on Equity)
 - ROA (Return on Assets)
@@ -57,6 +59,7 @@ python vn_stock_analyzer.py VCB.VN --technicals --output technicals.json
 ```
 
 **Indicators calculated:**
+
 - SMA (Simple Moving Average) 20-day
 - SMA 50-day
 - SMA 200-day
@@ -72,6 +75,7 @@ python vn_stock_analyzer.py VCB.VN --realtime --output realtime.json
 ```
 
 **Data includes:**
+
 - Current price
 - Bid price
 - Ask price
@@ -214,6 +218,7 @@ if ratios is None:
 - Historical data fetching: ~1-3 seconds per symbol
 
 For batch operations, consider:
+
 1. Implementing rate limiting
 2. Using concurrent.futures for parallel requests
 3. Caching results with 10-60 minute TTL

@@ -24,6 +24,20 @@ from .reporting import (
 )
 
 
+def _json_safe(value):
+    """Convert nested objects into JSON-serializable structures with string keys."""
+    if isinstance(value, dict):
+        return {str(k): _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(item) for item in value]
+    if hasattr(value, "to_dict"):
+        try:
+            return _json_safe(value.to_dict())
+        except Exception:
+            return str(value)
+    return value
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Analyze VN stock performance across multiple timeframes and compare symbols."
@@ -169,12 +183,13 @@ def run_stock_details_mode(args: argparse.Namespace) -> int:
     
     if details.get("realtime_price"):
         print("REAL-TIME PRICE:")
-        print(json.dumps(details["realtime_price"], indent=2, ensure_ascii=False, default=str))
+        realtime_payload = _json_safe(details["realtime_price"])
+        print(json.dumps(realtime_payload, indent=2, ensure_ascii=False, default=str))
         print()
     
     if details.get("financial_ratios"):
         print("FINANCIAL RATIOS:")
-        print(json.dumps(details["financial_ratios"], indent=2, ensure_ascii=False, default=str))
+        print(json.dumps(_json_safe(details["financial_ratios"]), indent=2, ensure_ascii=False, default=str))
         print()
     
     if details.get("technical_indicators"):
@@ -184,12 +199,15 @@ def run_stock_details_mode(args: argparse.Namespace) -> int:
                 latest = series.iloc[-1]
                 print(f"  {name}: {latest:.2f}")
         print()
+    else:
+        print("TECHNICAL INDICATORS: unavailable")
+        print()
     
     if args.output:
         output_data = {
             "symbol": symbol,
-            "realtime_price": details.get("realtime_price"),
-            "financial_ratios": details.get("financial_ratios"),
+            "realtime_price": _json_safe(details.get("realtime_price")),
+            "financial_ratios": _json_safe(details.get("financial_ratios")),
             "technical_indicators": {
                 k: float(v.iloc[-1]) if hasattr(v, 'iloc') and not v.empty else None
                 for k, v in (details.get("technical_indicators") or {}).items()
@@ -257,14 +275,14 @@ def run_financials_mode(args: argparse.Namespace) -> int:
     ratios = get_financial_ratios(symbol)
     
     if ratios:
-        print(json.dumps(ratios, indent=2, ensure_ascii=False, default=str))
+        print(json.dumps(_json_safe(ratios), indent=2, ensure_ascii=False, default=str))
         print()
     else:
         print(f"Could not fetch financial ratios for {symbol}")
         return 1
     
     if args.output:
-        to_json_file(args.output, {"symbol": symbol, "financial_ratios": ratios})
+        to_json_file(args.output, {"symbol": symbol, "financial_ratios": _json_safe(ratios)})
         print(f"Saved financial ratios to {args.output}")
     
     return 0
@@ -283,14 +301,14 @@ def run_realtime_mode(args: argparse.Namespace) -> int:
     price_data = get_realtime_price(symbol)
     
     if price_data:
-        print(json.dumps(price_data, indent=2, ensure_ascii=False, default=str))
+        print(json.dumps(_json_safe(price_data), indent=2, ensure_ascii=False, default=str))
         print()
     else:
         print(f"Could not fetch real-time price for {symbol}")
         return 1
     
     if args.output:
-        to_json_file(args.output, {"symbol": symbol, "realtime_price": price_data})
+        to_json_file(args.output, {"symbol": symbol, "realtime_price": _json_safe(price_data)})
         print(f"Saved real-time price to {args.output}")
     
     return 0
@@ -311,18 +329,18 @@ def run_peers_mode(args: argparse.Namespace) -> int:
     
     if comparison.get("peer_comparison"):
         print("PEER COMPARISON DATA:")
-        print(json.dumps(comparison["peer_comparison"], indent=2, ensure_ascii=False, default=str))
+        print(json.dumps(_json_safe(comparison["peer_comparison"]), indent=2, ensure_ascii=False, default=str))
         print()
     else:
         print(f"Could not fetch peer comparison data for {symbol}")
     
     if comparison.get("own_ratios"):
         print(f"\n{symbol} FINANCIAL RATIOS:")
-        print(json.dumps(comparison["own_ratios"], indent=2, ensure_ascii=False, default=str))
+        print(json.dumps(_json_safe(comparison["own_ratios"]), indent=2, ensure_ascii=False, default=str))
         print()
     
     if args.output:
-        to_json_file(args.output, comparison)
+        to_json_file(args.output, _json_safe(comparison))
         print(f"Saved peer comparison to {args.output}")
     
     return 0
