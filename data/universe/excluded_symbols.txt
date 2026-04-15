@@ -1,0 +1,3 @@
+# Symbols that are frequently unavailable on Yahoo in this environment
+VGS.VN
+MPC.VN
