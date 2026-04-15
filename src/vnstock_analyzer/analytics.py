@@ -7,6 +7,16 @@ import pandas as pd
 from .config import PERIOD_TO_DAYS
 from .models import StockMetrics
 
+try:
+    import vnstock as vs
+except ImportError:
+    vs = None
+
+try:
+    import pandas_ta as ta
+except ImportError:
+    ta = None
+
 
 def compute_return(series: pd.Series, lookback_days: int) -> float | None:
     if series.empty or len(series) < 2:
@@ -300,3 +310,141 @@ def analyze_sector_groups(
             "sustainable": [(sector, round(score, 2), count) for sector, score, count in sustainable_ranking[:top_n]],
         }
     return output
+
+
+    def get_stock_historical_data(symbol: str, start_date: str | None = None, end_date: str | None = None) -> pd.DataFrame | None:
+        """Fetch historical stock data using vnstock library.
+    
+        Args:
+            symbol: Stock symbol in Yahoo format (e.g., 'VCB.VN')
+            start_date: Start date in format 'YYYY-MM-DD' (optional)
+            end_date: End date in format 'YYYY-MM-DD' (optional)
+    
+        Returns:
+            DataFrame with OHLCV data or None if vnstock not available
+        """
+        if vs is None:
+            return None
+    
+        try:
+            # vnstock's stock_historical_data function
+            # API: stock_historical_data(symbol, start_date, end_date)
+            data = vs.stock_historical_data(symbol, start_date, end_date)
+            return data
+        except Exception as e:
+            print(f"Error fetching historical data for {symbol}: {e}")
+            return None
+
+
+    def get_financial_ratios(symbol: str) -> dict | None:
+        """Fetch financial ratios using vnstock library.
+    
+        Args:
+            symbol: Stock symbol in Yahoo format (e.g., 'VCB.VN')
+    
+        Returns:
+            Dictionary with financial ratios (P/E, ROE, ROA, Debt/Equity, etc.) or None if vnstock not available
+        """
+        if vs is None:
+            return None
+    
+        try:
+            # vnstock's financial_ratio function
+            # API: financial_ratio(symbol)
+            ratios = vs.financial_ratio(symbol)
+            if isinstance(ratios, pd.DataFrame):
+                return ratios.to_dict()
+            return ratios
+        except Exception as e:
+            print(f"Error fetching financial ratios for {symbol}: {e}")
+            return None
+
+
+    def get_peer_comparison(symbol: str, metric: str = "P/E") -> dict | None:
+        """Compare financial metrics with peer companies using vnstock library.
+    
+        Args:
+            symbol: Stock symbol in Yahoo format (e.g., 'VCB.VN')
+            metric: Financial metric to compare (e.g., 'P/E', 'ROE', 'ROA')
+    
+        Returns:
+            Dictionary with peer comparison data or None if vnstock not available
+        """
+        if vs is None:
+            return None
+    
+        try:
+            # vnstock's financial_ratio_compare function
+            # API: financial_ratio_compare(symbol, metric)
+            comparison = vs.financial_ratio_compare(symbol, metric)
+            if isinstance(comparison, pd.DataFrame):
+                return comparison.to_dict()
+            return comparison
+        except Exception as e:
+            print(f"Error comparing peers for {symbol}: {e}")
+            return None
+
+
+    def calculate_technical_indicators(data: pd.DataFrame, sma_periods: list[int] | None = None) -> dict[str, pd.Series] | None:
+        """Calculate technical indicators (SMA, RSI) using pandas_ta library.
+    
+        Args:
+            data: DataFrame with OHLCV data or at least 'Close' column
+            sma_periods: List of SMA periods to calculate (default: [20, 50, 200])
+    
+        Returns:
+            Dictionary with technical indicators (SMA_20, SMA_50, SMA_200, RSI_14) or None if pandas_ta not available
+        """
+        if ta is None or data is None or data.empty:
+            return None
+    
+        if sma_periods is None:
+            sma_periods = [20, 50, 200]
+    
+        try:
+            result: dict[str, pd.Series] = {}
+        
+            close = data["Close"] if "Close" in data.columns else data.iloc[:, 0]
+        
+            # Calculate SMAs
+            for period in sma_periods:
+                sma = ta.sma(close, length=period)
+                if sma is not None:
+                    result[f"SMA_{period}"] = sma
+        
+            # Calculate RSI (relative strength index)
+            rsi = ta.rsi(close, length=14)
+            if rsi is not None:
+                result["RSI_14"] = rsi
+        
+            return result if result else None
+        except Exception as e:
+            print(f"Error calculating technical indicators: {e}")
+            return None
+
+
+    def get_realtime_price(symbol: str) -> dict | None:
+        """Fetch real-time stock price and board information using vnstock library.
+    
+        Args:
+            symbol: Stock symbol in Yahoo format (e.g., 'VCB.VN')
+    
+        Returns:
+            Dictionary with real-time price data (price, bid, ask, volume, etc.) or None if vnstock not available
+        """
+        if vs is None:
+            return None
+    
+        try:
+            # vnstock's price_board function
+            # API: price_board(symbol)
+            board = vs.price_board(symbol)
+            if isinstance(board, pd.DataFrame):
+                # Convert to scalar dict if single row
+                if len(board) == 1:
+                    return board.iloc[0].to_dict()
+                return board.to_dict()
+            return board
+        except Exception as e:
+            print(f"Error fetching real-time price for {symbol}: {e}")
+            return None

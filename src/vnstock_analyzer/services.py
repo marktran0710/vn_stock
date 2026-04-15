@@ -12,6 +12,13 @@ from .analytics import (
     recommend_top_join_stocks,
     summarize_comparison,
 )
+from .analytics import (
+get_stock_historical_data,
+get_financial_ratios,
+get_peer_comparison,
+calculate_technical_indicators,
+get_realtime_price,
+    )
 from .config import DEFAULT_PERIODS, TOP200_DEFAULT_PATH
 from .data import load_history, load_universe_dataframe
 from .models import AnalysisResult, UniverseScanResult
@@ -60,6 +67,50 @@ def build_compare_analysis(symbols: list[str], periods: list[str], benchmark: st
         ],
     )
     return result, failures
+
+
+def get_stock_details(symbol: str) -> dict:
+    """Fetch comprehensive stock details: financials, real-time price, and technical indicators.
+    
+    Args:
+        symbol: Stock symbol (e.g., 'VCB.VN')
+    
+    Returns:
+        Dictionary with historical data, financial ratios, real-time price, and technical indicators
+    """
+    symbol = symbol.upper()
+    result: dict = {
+        "symbol": symbol,
+        "financial_ratios": get_financial_ratios(symbol),
+        "realtime_price": get_realtime_price(symbol),
+        "technical_indicators": None,
+    }
+    
+    # Fetch historical data and calculate technical indicators
+    historical_data = get_stock_historical_data(symbol)
+    if historical_data is not None and not historical_data.empty:
+        result["technical_indicators"] = calculate_technical_indicators(historical_data)
+    
+    return result
+
+
+def get_sector_peers(symbol: str, metric: str = "P/E") -> dict:
+    """Get peer comparison for a stock in its sector.
+    
+    Args:
+        symbol: Stock symbol (e.g., 'VCB.VN')
+        metric: Financial metric to compare (e.g., 'P/E', 'ROE', 'ROA', 'Debt/Equity')
+    
+    Returns:
+        Dictionary with peer comparison and ratios
+    """
+    symbol = symbol.upper()
+    return {
+        "symbol": symbol,
+        "metric": metric,
+        "peer_comparison": get_peer_comparison(symbol, metric),
+        "own_ratios": get_financial_ratios(symbol),
+    }
 
 
 def build_universe_scan_analysis(

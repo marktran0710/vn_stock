@@ -149,3 +149,64 @@ def plot_comparison(history: dict[str, pd.DataFrame], output_file: Path) -> Path
     plt.savefig(output_file, dpi=150)
     plt.close()
     return output_file
+
+
+    def render_technical_indicators(symbol: str, indicators: dict[str, pd.Series] | None) -> str:
+        """Format technical indicators for display."""
+        if not indicators:
+            return f"No technical indicators available for {symbol}"
+    
+        lines = [
+            f"Technical Indicators: {symbol}",
+            "=" * 50,
+            ""
+        ]
+    
+        for name, series in indicators.items():
+            if hasattr(series, 'iloc') and not series.empty:
+                latest = series.iloc[-1]
+                if pd.notna(latest):
+                    lines.append(f"  {name}: {latest:.2f}")
+    
+        return "\n".join(lines)
+
+
+    def render_financial_ratios(symbol: str, ratios: dict | None) -> str:
+        """Format financial ratios for display."""
+        if not ratios:
+            return f"No financial ratios available for {symbol}"
+    
+        lines = [
+            f"Financial Ratios: {symbol}",
+            "=" * 50,
+            ""
+        ]
+    
+        # Display ratios in a readable format
+        for key, value in ratios.items():
+            if isinstance(value, (int, float)):
+                lines.append(f"  {key}: {value:.2f}")
+            else:
+                lines.append(f"  {key}: {value}")
+    
+        return "\n".join(lines)
+
+
+    def render_realtime_price(symbol: str, price_data: dict | None) -> str:
+        """Format real-time price data for display."""
+        if not price_data:
+            return f"No real-time price data available for {symbol}"
+    
+        lines = [
+            f"Real-Time Price: {symbol}",
+            "=" * 50,
+            ""
+        ]
+    
+        # Display key price fields
+        key_fields = ['price', 'bid', 'ask', 'volume', 'change', 'change_percent']
+        for field in key_fields:
+            if field in price_data:
+                lines.append(f"  {field.replace('_', ' ').title()}: {price_data[field]}")
+    
+        return "\n".join(lines)
