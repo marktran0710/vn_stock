@@ -34,7 +34,9 @@ class UniverseScanResult:
     average_returns: dict[str, float]
     top_gainers_3m: list[tuple[str, float]]
     top_losers_3m: list[tuple[str, float]]
+    top_join_candidates_3m: list[tuple[str, float, str]]
     top_join_candidates_now: list[tuple[str, float, str]]
+    buy_potential_candidates: list[tuple[str, float, str, str]]
     market_fluctuation_summary: str
     notes: list[str]
     sector_group_analysis: dict[str, dict[str, list[tuple[str, float, int]]]] = dataclasses.field(default_factory=dict)

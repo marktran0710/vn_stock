@@ -17,6 +17,7 @@ from .analytics import (
 )
 from .reporting import (
     analysis_result_to_payload,
+    render_buy_potential,
     render_report,
     render_universe_scan,
     to_json_file,
@@ -80,6 +81,11 @@ def parse_args() -> argparse.Namespace:
         help="Analyze the top VN universe file and summarize market fluctuation",
     )
     parser.add_argument(
+        "--buy-potential",
+        action="store_true",
+        help="Analyze the universe and return buy-potential candidates",
+    )
+    parser.add_argument(
         "--universe-file",
         type=Path,
         default=TOP200_DEFAULT_PATH,
@@ -96,6 +102,12 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=10,
         help="Number of top join candidates to return in market-scan mode",
+    )
+    parser.add_argument(
+        "--min-buy-score",
+        type=float,
+        default=0.0,
+        help="Minimum score threshold in buy-potential mode",
     )
     parser.add_argument(
         "--details",
@@ -166,6 +178,34 @@ def run_market_scan_mode(args: argparse.Namespace) -> int:
         to_json_file(args.output, universe_result_to_payload(result))
         print(f"\nSaved JSON report to {args.output}")
 
+    return 0
+
+
+def run_buy_potential_mode(args: argparse.Namespace) -> int:
+    try:
+        result, failures = build_universe_scan_analysis(
+            universe_file=args.universe_file,
+            periods=args.periods,
+            benchmark=args.benchmark,
+            scan_limit=args.scan_limit,
+            top_n=args.top_n,
+        )
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+
+    print(render_buy_potential(result, min_score=args.min_buy_score))
+
+    if args.output:
+        payload = universe_result_to_payload(result)
+        payload["min_buy_score"] = args.min_buy_score
+        payload["buy_potential_filtered"] = [
+            row for row in result.buy_potential_candidates if row[1] >= args.min_buy_score
+        ]
+        to_json_file(args.output, payload)
+        print(f"\nSaved JSON report to {args.output}")
+
+    if failures:
+        print(f"\nSkipped symbols with missing data: {len(failures)}")
     return 0
 
 
@@ -359,6 +399,8 @@ def main() -> int:
         return run_realtime_mode(args)
     elif args.peers:
         return run_peers_mode(args)
+    elif args.buy_potential:
+        return run_buy_potential_mode(args)
     elif args.market_scan:
         return run_market_scan_mode(args)
     else:

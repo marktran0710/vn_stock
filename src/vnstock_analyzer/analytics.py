@@ -220,6 +220,92 @@ def recommend_top_join_stocks(metrics: list[StockMetrics], top_n: int = 10) -> l
     return ranked[:top_n]
 
 
+def analyze_buy_potential(metrics: list[StockMetrics], top_n: int = 10) -> list[tuple[str, float, str, str]]:
+    """Build buy-potential candidates from the same core scoring model.
+
+    Returns tuples: (symbol, score, setup_strength, summary)
+    """
+    ranked = recommend_top_join_stocks(metrics, top_n=top_n)
+    output: list[tuple[str, float, str, str]] = []
+
+    for symbol, score, rationale in ranked:
+        if score >= 1.15:
+            setup_strength = "high"
+        elif score >= 0.35:
+            setup_strength = "medium"
+        else:
+            setup_strength = "low"
+
+        if setup_strength == "high":
+            setup_note = "trend and momentum are supportive with controlled risk"
+        elif setup_strength == "medium":
+            setup_note = "mixed but improving setup; consider watchlist and confirmation"
+        else:
+            setup_note = "weak setup; momentum or trend needs confirmation"
+
+        summary = f"{setup_note}; {rationale}"
+        output.append((symbol, score, setup_strength, summary))
+
+    return output
+
+
+def recommend_top_join_stocks_3m(metrics: list[StockMetrics], top_n: int = 10) -> list[tuple[str, float, str]]:
+    """Rank 3-month join candidates using 3M return, trend, and risk.
+
+    Returns tuples: (symbol, score, rationale)
+    """
+    if not metrics or top_n <= 0:
+        return []
+
+    rows = []
+    for item in metrics:
+        r3 = item.returns.get("3mo")
+        if r3 is None:
+            continue
+        trend = item.trend_score if item.trend_score is not None else 0.0
+        volatility = item.volatility_30d if item.volatility_30d is not None else 40.0
+        drawdown = abs(item.max_drawdown_1y) if item.max_drawdown_1y is not None else 30.0
+        risk = volatility * 0.55 + drawdown * 0.45
+        rows.append(
+            {
+                "symbol": item.symbol,
+                "r3": r3,
+                "trend": trend,
+                "risk": risk,
+            }
+        )
+
+    if not rows:
+        return []
+
+    r3_mean = sum(row["r3"] for row in rows) / len(rows)
+    trend_mean = sum(row["trend"] for row in rows) / len(rows)
+    risk_mean = sum(row["risk"] for row in rows) / len(rows)
+
+    def _std(values: list[float], mean: float) -> float:
+        if len(values) < 2:
+            return 1.0
+        variance = sum((value - mean) ** 2 for value in values) / len(values)
+        return math.sqrt(variance) if variance > 1e-9 else 1.0
+
+    r3_std = _std([row["r3"] for row in rows], r3_mean)
+    trend_std = _std([row["trend"] for row in rows], trend_mean)
+    risk_std = _std([row["risk"] for row in rows], risk_mean)
+
+    ranked: list[tuple[str, float, str]] = []
+    for row in rows:
+        r3_z = (row["r3"] - r3_mean) / r3_std
+        trend_z = (row["trend"] - trend_mean) / trend_std
+        risk_z = (row["risk"] - risk_mean) / risk_std
+        bonus = 0.10 if row["r3"] > 0 else 0.0
+        score = 0.65 * r3_z + 0.25 * trend_z - 0.30 * risk_z + bonus
+        rationale = f"3M={row['r3']:.2f}%, trend={row['trend']:.2f}, risk={row['risk']:.2f}"
+        ranked.append((row["symbol"], round(score, 4), rationale))
+
+    ranked.sort(key=lambda item: item[1], reverse=True)
+    return ranked[:top_n]
+
+
 def analyze_sector_groups(
     metrics: list[StockMetrics],
     sector_by_symbol: dict[str, str],

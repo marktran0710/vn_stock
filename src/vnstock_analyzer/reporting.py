@@ -75,9 +75,18 @@ def render_universe_scan(result: UniverseScanResult) -> str:
     for symbol, value in result.top_losers_3m:
         lines.append(f"- {symbol}: {value:.2f}%")
     lines.append("")
+    lines.append("Top 10 potential stocks to join (3M horizon):")
+    for symbol, score, rationale in result.top_join_candidates_3m:
+        lines.append(f"- {symbol}: score {score:.4f} ({rationale})")
+    lines.append("")
     lines.append("Top join candidates now:")
     for symbol, score, rationale in result.top_join_candidates_now:
         lines.append(f"- {symbol}: score {score:.4f} ({rationale})")
+    if result.buy_potential_candidates:
+        lines.append("")
+        lines.append("Buy potential candidates:")
+        for symbol, score, setup_strength, summary in result.buy_potential_candidates:
+            lines.append(f"- {symbol}: score {score:.4f} [{setup_strength}] ({summary})")
     lines.append("")
     lines.append("Sector group analysis (3M / 6M / 12M):")
     for period in ["3mo", "6mo", "1y"]:
@@ -93,6 +102,32 @@ def render_universe_scan(result: UniverseScanResult) -> str:
             lines.append(f"  {group_name}: {preview}")
     lines.append("")
     lines.append("Notes:")
+    for note in result.notes:
+        lines.append(f"- {note}")
+    return "\n".join(lines)
+
+
+def render_buy_potential(result: UniverseScanResult, min_score: float = 0.0) -> str:
+    lines = []
+    lines.append(f"VN Buy Potential Analysis as of {result.as_of}")
+    lines.append(f"Universe size: {result.total_symbols}, analyzed: {result.analyzed_symbols}")
+    if result.benchmark:
+        lines.append(f"Benchmark: {result.benchmark}")
+    lines.append("")
+    lines.append(f"Market fluctuation: {result.market_fluctuation_summary}")
+    lines.append("")
+    lines.append(f"Buy potential ideas (score >= {min_score:.2f}):")
+
+    filtered = [row for row in result.buy_potential_candidates if row[1] >= min_score]
+    if not filtered:
+        lines.append("- No symbols met the current score threshold.")
+    else:
+        for symbol, score, setup_strength, summary in filtered:
+            lines.append(f"- {symbol}: score {score:.4f} [{setup_strength}] ({summary})")
+
+    lines.append("")
+    lines.append("Notes:")
+    lines.append("- This score highlights technical setup quality, not guaranteed returns.")
     for note in result.notes:
         lines.append(f"- {note}")
     return "\n".join(lines)
@@ -123,7 +158,9 @@ def universe_result_to_payload(result: UniverseScanResult) -> dict:
         "average_returns": result.average_returns,
         "top_gainers_3m": result.top_gainers_3m,
         "top_losers_3m": result.top_losers_3m,
+        "top_join_candidates_3m": result.top_join_candidates_3m,
         "top_join_candidates_now": result.top_join_candidates_now,
+        "buy_potential_candidates": result.buy_potential_candidates,
         "sector_group_analysis": getattr(result, "sector_group_analysis", {}),
         "market_fluctuation_summary": result.market_fluctuation_summary,
         "notes": result.notes,

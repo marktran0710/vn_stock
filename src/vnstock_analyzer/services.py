@@ -7,8 +7,10 @@ import pandas as pd
 
 from .analytics import (
     analyze_sector_groups,
+    analyze_buy_potential,
     build_metrics,
     describe_market_fluctuation,
+    recommend_top_join_stocks_3m,
     recommend_top_join_stocks,
     summarize_comparison,
 )
@@ -161,7 +163,9 @@ def build_universe_scan_analysis(
     scored_3m.sort(key=lambda row: row[1], reverse=True)
     top_gainers = [(symbol, value) for symbol, value in scored_3m[:10]]
     top_losers = [(symbol, value) for symbol, value in scored_3m[-10:]]
+    top_join_candidates_3m = recommend_top_join_stocks_3m(metrics, top_n=10)
     top_join_candidates = recommend_top_join_stocks(metrics, top_n=top_n)
+    buy_potential_candidates = analyze_buy_potential(metrics, top_n=top_n)
     sector_group_analysis = analyze_sector_groups(metrics, sector_by_symbol, periods=["3mo", "6mo", "1y"], top_n=3)
 
     result = UniverseScanResult(
@@ -172,7 +176,9 @@ def build_universe_scan_analysis(
         average_returns=average_returns,
         top_gainers_3m=top_gainers,
         top_losers_3m=top_losers,
+        top_join_candidates_3m=top_join_candidates_3m,
         top_join_candidates_now=top_join_candidates,
+        buy_potential_candidates=buy_potential_candidates,
         sector_group_analysis=sector_group_analysis,
         market_fluctuation_summary=describe_market_fluctuation(benchmark_series),
         notes=[
